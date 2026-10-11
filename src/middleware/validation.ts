@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { ObjectId } from 'mongodb';
 
 function validationQuery(req: Request, res: Response, next: NextFunction) {
   const { limit, offset, search, completed, priority, dueFrom, dueTo } =
@@ -122,7 +123,7 @@ function validationQuery(req: Request, res: Response, next: NextFunction) {
 
 function validationIdTodo(req: Request, res: Response, next: NextFunction) {
   const id = req.params.id;
-  if (!Number.isInteger(Number(id)) || Number(id) < 1) {
+  if (typeof id !== 'string' || !ObjectId.isValid(id)) {
     return res.status(400).json({
       success: false,
       error: 'Body request failed',

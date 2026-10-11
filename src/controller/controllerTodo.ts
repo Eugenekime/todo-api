@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { TodoQueryOptions } from '../types/todo.types.js';
 import * as serviceTodo from '../service/serviceTodo.js';
 
-function getAllTodo(req: Request, res: Response, next: NextFunction) {
+async function getAllTodo(req: Request, res: Response, next: NextFunction) {
   try {
     const { limit, completed, priority, search, offset, dueFrom, dueTo } =
       req.query;
@@ -36,7 +36,7 @@ function getAllTodo(req: Request, res: Response, next: NextFunction) {
       options.dueTo = dueTo;
     }
 
-    const response = serviceTodo.getAllTodo(options);
+    const response = await serviceTodo.getAllTodo(options);
     return res.json({
       success: true,
       ...response,
@@ -46,28 +46,43 @@ function getAllTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-function getSingleTodo(req: Request, res: Response, next: NextFunction) {
-  const id = Number(req.params.id);
-  const data = serviceTodo.getSingleTodo(id);
-  if (!data) {
-    return res.status(404).json({
+async function getSingleTodo(req: Request, res: Response, next: NextFunction) {
+  const id = req.params.id;
+
+  if (typeof id !== 'string') {
+    return res.status(400).json({
       success: false,
-      error: 'Id request failed',
-      details: [
-        {
-          field: 'id',
-          message: 'Cannot found id',
-          value: id,
-        },
-      ],
+      error: 'Invalid id',
     });
   }
-  return res.json(data);
+
+  try {
+    const data = await serviceTodo.getSingleTodo(id);
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Id request failed',
+        details: [
+          {
+            field: 'id',
+            message: 'Cannot find id',
+            value: id,
+          },
+        ],
+      });
+    }
+
+    return res.json(data);
+  } catch (error) {
+    next(error);
+  }
 }
 
-function createTodo(req: Request, res: Response, next: NextFunction) {
+async function createTodo(req: Request, res: Response, next: NextFunction) {
   try {
-    const newTodo = serviceTodo.createTodo(req.body);
+    const newTodo = await serviceTodo.createTodo(req.body);
+
     return res.status(201).json({
       success: true,
       message: 'Todo created',
@@ -78,10 +93,16 @@ function createTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-function updateTodo(req: Request, res: Response, next: NextFunction) {
+async function updateTodo(req: Request, res: Response, next: NextFunction) {
+  const id = req.params.id;
+  if (typeof id !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid id',
+    });
+  }
   try {
-    const id = req.params.id;
-    const updatedTodo = serviceTodo.updateTodo(Number(id), req.body);
+    const updatedTodo = await serviceTodo.updateTodo(id, req.body);
     if (!updatedTodo) {
       return res.status(404).json({
         success: false,
@@ -105,24 +126,34 @@ function updateTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-function deleteTodo(req: Request, res: Response, next: NextFunction) {
-  const id = Number(req.params.id);
-  const isDeleted = serviceTodo.deleteTodo(id);
-  if (!isDeleted) {
-    return res.status(404).json({
+async function deleteTodo(req: Request, res: Response, next: NextFunction) {
+  const id = req.params.id;
+  if (typeof id !== 'string') {
+    return res.status(400).json({
       success: false,
-      error: 'Id request failed',
-      details: [
-        {
-          field: 'id',
-          message: 'Cannot found id',
-          value: id,
-        },
-      ],
+      error: 'Invalid id',
     });
   }
+  try {
+    const isDeleted = serviceTodo.deleteTodo(id);
+    if (!isDeleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Id request failed',
+        details: [
+          {
+            field: 'id',
+            message: 'Cannot found id',
+            value: id,
+          },
+        ],
+      });
+    }
 
-  return res.status(204).send();
+    return res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
 }
 
 export { getAllTodo, createTodo, updateTodo, getSingleTodo, deleteTodo };
