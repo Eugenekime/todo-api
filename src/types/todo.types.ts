@@ -4,7 +4,7 @@ export interface Todo {
   description: string;
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
-  dueDate: string;
+  dueDate: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -16,6 +16,8 @@ export type TodoQueryOptions = {
   offset?: number;
   dueFrom?: string;
   dueTo?: string;
+  sortBy?: string;
+  order?: string;
 };
 
 export interface UpdateTodo {

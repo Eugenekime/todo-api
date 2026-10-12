@@ -12,8 +12,8 @@ const todos: Todo[] = [
     description: 'Finish the TODO API',
     completed: false,
     priority: 'high',
-    dueDate: '2024-12-31',
-    createdAt: '2024-01-15T10:00:00Z',
+    dueDate: '2024-12-31T00:00:00.000Z',
+    createdAt: '2024-01-15T10:00:00.000Z',
   },
   {
     id: 2,
@@ -21,8 +21,8 @@ const todos: Todo[] = [
     description: 'Finish the TODO API',
     completed: false,
     priority: 'high',
-    dueDate: '2024-08-31',
-    createdAt: '2024-01-15T10:00:00Z',
+    dueDate: '2024-08-31T00:00:00.000Z',
+    createdAt: '2024-01-15T10:00:00.000Z',
   },
   {
     id: 3,
@@ -30,8 +30,8 @@ const todos: Todo[] = [
     description: 'Finish the TODO API',
     completed: true,
     priority: 'high',
-    dueDate: '2024-10-22',
-    createdAt: '2024-01-15T10:00:00Z',
+    dueDate: '2024-10-22T00:00:00.000Z',
+    createdAt: '2024-01-15T10:00:00.000Z',
   },
   {
     id: 4,
@@ -39,13 +39,13 @@ const todos: Todo[] = [
     description: 'Finish the TODO API',
     completed: true,
     priority: 'high',
-    dueDate: '2024-9-15',
-    createdAt: '2024-01-15T10:00:00Z',
+    dueDate: '2024-09-15T00:00:00.000Z',
+    createdAt: '2024-01-15T10:00:00.000Z',
   },
 ];
 
 function getAllTodo(options: TodoQueryOptions) {
-  let filteredTodos = todos;
+  let filteredTodos = [...todos];
   if (options.completed !== undefined) {
     filteredTodos = filteredTodos.filter(
       (todo) => todo.completed === options.completed
@@ -64,16 +64,65 @@ function getAllTodo(options: TodoQueryOptions) {
         todo.description.toLowerCase().includes(search)
     );
   }
-  if (options.dueFrom !== undefined && options.dueTo !== undefined) {
-    const from = new Date(options.dueFrom);
-    const to = new Date(options.dueTo);
-    filteredTodos = filteredTodos.filter((todo) => {
-      const formatted = new Date(todo.dueDate);
-      if (options.dueFrom !== undefined && options.dueTo !== undefined) {
-        return formatted >= from && formatted <= to;
+  if (options.sortBy !== undefined) {
+    const sortBy = options.sortBy;
+    if (sortBy === 'dueDate') {
+      filteredTodos = filteredTodos.sort((a, b) => {
+        if (a.dueDate === null && b.dueDate === null) {
+          return 0;
+        }
+
+        if (a.dueDate === null) {
+          return 1;
+        }
+
+        if (b.dueDate === null) {
+          return -1;
+        }
+        const dateA = new Date(a.dueDate).getTime();
+        const dateB = new Date(b.dueDate).getTime();
+
+        if (options.order === 'desc') {
+          return dateB - dateA;
+        }
+        return dateA - dateB;
+      });
+    }
+    if (sortBy === 'createdAt') {
+      if (options.order === 'desc') {
+        filteredTodos = filteredTodos.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } else {
+        filteredTodos = filteredTodos.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
       }
+    }
+  }
+  if (options.dueFrom !== undefined) {
+    const from = new Date(options.dueFrom);
+    filteredTodos = filteredTodos.filter((todo) => {
+      if (todo.dueDate === null) {
+        return false;
+      }
+      const formatted = new Date(todo.dueDate);
+      return formatted >= from;
     });
   }
+  if (options.dueTo !== undefined) {
+    const to = new Date(options.dueTo);
+    filteredTodos = filteredTodos.filter((todo) => {
+      if (todo.dueDate === null) {
+        return false;
+      }
+      const formatted = new Date(todo.dueDate);
+      return formatted <= to;
+    });
+  }
+
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
 
@@ -109,7 +158,7 @@ function createTodo(body: CreateTodo): Todo {
     title: body.title.trim(),
     description: body.description.trim(),
     priority: body.priority ?? 'low',
-    dueDate: dueDate ? dueDate.toISOString() : 'anytime',
+    dueDate: dueDate ? dueDate.toISOString() : null,
     createdAt: new Date().toISOString(),
     completed: false,
   };
@@ -138,7 +187,15 @@ function updateTodo(id: number, body: UpdateTodo): Todo | null {
   }
 
   if (body.dueDate !== undefined) {
-    todo.dueDate = body.dueDate;
+    if (body.dueDate === null) {
+      todo.dueDate = null;
+    } else {
+      const dueDate = new Date(body.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        throw new Error('Invalid due date');
+      }
+      todo.dueDate = dueDate.toISOString();
+    }
   }
 
   todo.updatedAt = new Date().toISOString();

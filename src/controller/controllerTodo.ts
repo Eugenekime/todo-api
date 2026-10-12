@@ -4,8 +4,17 @@ import * as serviceTodo from '../service/serviceTodo.js';
 
 function getAllTodo(req: Request, res: Response, next: NextFunction) {
   try {
-    const { limit, completed, priority, search, offset, dueFrom, dueTo } =
-      req.query;
+    const {
+      limit,
+      completed,
+      priority,
+      search,
+      offset,
+      dueFrom,
+      dueTo,
+      sortBy,
+      order,
+    } = req.query;
     const options: TodoQueryOptions = {};
 
     if (limit !== undefined) {
@@ -26,6 +35,13 @@ function getAllTodo(req: Request, res: Response, next: NextFunction) {
 
     if (offset !== undefined) {
       options.offset = Number(offset);
+    }
+
+    if (typeof sortBy === 'string') {
+      options.sortBy = sortBy;
+    }
+    if (typeof order === 'string') {
+      options.order = order;
     }
 
     if (typeof dueFrom === 'string') {
@@ -95,7 +111,7 @@ function updateTodo(req: Request, res: Response, next: NextFunction) {
         ],
       });
     }
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
       message: 'Todo updated',
       data: updatedTodo,

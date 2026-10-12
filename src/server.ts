@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import router from './routes/todos.js';
 import logRequest from './middleware/logRequest.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -10,6 +11,20 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(logRequest);
 app.use('/api', router);
+
+app.use((req: Request, res: Response) => {
+  return res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    details: [
+      {
+        field: 'path',
+        message: 'The requested route does not exist',
+        value: req.originalUrl,
+      },
+    ],
+  });
+});
 
 app.use(errorHandler);
 
