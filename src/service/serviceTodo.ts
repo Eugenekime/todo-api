@@ -23,14 +23,14 @@ async function getAllTodo(options: TodoQueryOptions) {
   }
 
   if (options.dueFrom !== undefined || options.dueTo !== undefined) {
-    const dueDateFilter: { $gte?: string; $lte?: string } = {};
+    const dueDateFilter: { $gte?: Date; $lte?: Date } = {};
 
     if (options.dueFrom !== undefined) {
-      dueDateFilter.$gte = options.dueFrom;
+      dueDateFilter.$gte = new Date(options.dueFrom);
     }
 
     if (options.dueTo !== undefined) {
-      dueDateFilter.$lte = options.dueTo;
+      dueDateFilter.$lte = new Date(options.dueTo);
     }
 
     filter.dueDate = dueDateFilter;
@@ -47,13 +47,33 @@ async function getAllTodo(options: TodoQueryOptions) {
     ];
   }
 
+  const sort: Record<string, 1 | -1> = {};
+
+  if (options.sortBy !== undefined) {
+    const direction = options.order === 'desc' ? -1 : 1;
+
+    if (options.sortBy === 'dueDate') {
+      sort.dueDate = direction;
+    }
+
+    if (options.sortBy === 'createdAt') {
+      sort.createdAt = direction;
+    }
+  }
+
+  if (Object.keys(sort).length === 0) {
+    sort.createdAt = -1;
+  }
+
+  sort._id = -1;
+
   const total = await todosCollection.countDocuments();
 
   const filtered = await todosCollection.countDocuments(filter);
 
   const todos = await todosCollection
     .find(filter)
-    .sort({ createdAt: -1, _id: -1 })
+    .sort(sort)
     .skip(offset)
     .limit(limit)
     .toArray();
@@ -82,8 +102,8 @@ async function createTodo(body: CreateTodo): Promise<Todo> {
     title: body.title.trim(),
     description: body.description.trim(),
     priority: body.priority ?? 'low',
-    dueDate: body.dueDate ? new Date(body.dueDate).toISOString() : 'anytime',
-    createdAt: new Date().toISOString(),
+    dueDate: body.dueDate == null ? null : new Date(body.dueDate),
+    createdAt: new Date(),
     completed: false,
   };
 
@@ -119,10 +139,18 @@ async function updateTodo(id: string, body: UpdateTodo): Promise<Todo | null> {
   }
 
   if (body.dueDate !== undefined) {
-    updates.dueDate = body.dueDate;
+    if (body.dueDate === null) {
+      updates.dueDate = null;
+    } else {
+      const dueDate = new Date(body.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        throw new Error('Invalid due date');
+      }
+      updates.dueDate = dueDate;
+    }
   }
 
-  updates.updatedAt = new Date().toISOString();
+  updates.updatedAt = new Date();
 
   return todosCollection.findOneAndUpdate(
     { _id: new ObjectId(id) },

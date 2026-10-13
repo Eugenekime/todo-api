@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import 'dotenv/config';
 import router from './routes/todos.js';
 import logRequest from './middleware/logRequest.js';
@@ -18,6 +19,20 @@ app.get('/health', async (req, res) => {
     return res.status(503).json({ status: 'error', database: 'disconnected' });
   }
   return res.json({ status: 'ok', database: 'connected' });
+});
+
+app.use((req: Request, res: Response) => {
+  return res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    details: [
+      {
+        field: 'path',
+        message: 'The requested route does not exist',
+        value: req.originalUrl,
+      },
+    ],
+  });
 });
 
 app.use(errorHandler);

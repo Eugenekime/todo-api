@@ -6,9 +6,9 @@ export interface Todo {
   description: string;
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
-  dueDate: string;
-  createdAt: string;
-  updatedAt?: string;
+  dueDate: Date | null;
+  createdAt: Date;
+  updatedAt?: Date;
 }
 export type TodoQueryOptions = {
   limit?: number;
@@ -18,6 +18,8 @@ export type TodoQueryOptions = {
   offset?: number;
   dueFrom?: string;
   dueTo?: string;
+  sortBy?: string;
+  order?: string;
 };
 
 export interface UpdateTodo {
@@ -25,12 +27,12 @@ export interface UpdateTodo {
   description?: string;
   completed?: boolean;
   priority?: 'low' | 'medium' | 'high';
-  dueDate?: string;
+  dueDate?: Date;
 }
 
 export interface CreateTodo {
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high';
-  dueDate: string;
+  dueDate: Date;
 }

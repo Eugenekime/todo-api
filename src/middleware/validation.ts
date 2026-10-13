@@ -2,8 +2,17 @@ import type { Request, Response, NextFunction } from 'express';
 import { ObjectId } from 'mongodb';
 
 function validationQuery(req: Request, res: Response, next: NextFunction) {
-  const { limit, offset, search, completed, priority, dueFrom, dueTo } =
-    req.query;
+  const {
+    limit,
+    offset,
+    search,
+    completed,
+    priority,
+    dueFrom,
+    dueTo,
+    sortBy,
+    order,
+  } = req.query;
 
   if (limit !== undefined) {
     if (!Number.isInteger(Number(limit)) || Number(limit) < 1) {
@@ -80,44 +89,130 @@ function validationQuery(req: Request, res: Response, next: NextFunction) {
       });
     }
   }
-  if (dueFrom !== undefined && dueTo !== undefined) {
-    if (typeof dueFrom === 'string' && typeof dueTo === 'string') {
+
+  if (sortBy !== undefined && sortBy !== 'dueDate' && sortBy !== 'createdAt') {
+    return res.status(400).json({
+      success: false,
+      error: 'Query parameter failed',
+      details: [
+        {
+          field: 'sortBy',
+          message: 'SortBy can be dueDate or createdAt',
+          value: sortBy,
+        },
+      ],
+    });
+  }
+
+  if (order !== undefined && order !== 'asc' && order !== 'desc') {
+    return res.status(400).json({
+      success: false,
+      error: 'Query parameter failed',
+      details: [
+        {
+          field: 'order',
+          message: 'Order can be asc or desc',
+          value: order,
+        },
+      ],
+    });
+  }
+
+  if (sortBy === undefined && order !== undefined) {
+    return res.status(400).json({
+      success: false,
+      error: 'Query parameter failed',
+      details: [
+        {
+          field: 'order',
+          message: 'The order parameter requires sortBy',
+          value: order,
+        },
+      ],
+    });
+  }
+  if (dueFrom !== undefined) {
+    if (typeof dueFrom === 'string') {
       const from = new Date(dueFrom);
-      const to = new Date(dueTo);
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      if (isNaN(from.getTime())) {
         return res.status(400).json({
           success: false,
           error: 'Query parameter failed',
           details: [
             {
-              field: 'dueFrom or dueTo',
-              message: 'DueFrom and dueTo must be a valid date',
-              value: {
-                dueFrom,
-                dueTo,
-              },
+              field: 'dueFrom',
+              message: 'DueFrom must be a valid date',
+              value: dueFrom,
             },
           ],
         });
       }
-      if (from > to) {
-        return res.status(400).json({
-          success: false,
-          error: 'Query parameter failed',
-          details: [
-            {
-              field: 'dueFrom or dueTo',
-              message: 'DueFrom must be before or equal to dueTo',
-              value: {
-                dueFrom,
-                dueTo,
-              },
-            },
-          ],
-        });
-      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter failed',
+        details: [
+          {
+            field: 'dueFrom',
+            message: 'The DueFrom parameter must be a string',
+            value: dueFrom,
+          },
+        ],
+      });
     }
   }
+  if (dueTo !== undefined) {
+    if (typeof dueTo === 'string') {
+      const to = new Date(dueTo);
+      if (isNaN(to.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Query parameter failed',
+          details: [
+            {
+              field: 'dueTo',
+              message: 'DueTo must be a valid date',
+              value: dueTo,
+            },
+          ],
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter failed',
+        details: [
+          {
+            field: 'dueTo',
+            message: 'The DueTo parameter must be a string',
+            value: dueTo,
+          },
+        ],
+      });
+    }
+  }
+  if (dueFrom !== undefined && dueTo !== undefined) {
+    const from = new Date(dueFrom);
+    const to = new Date(dueTo);
+
+    if (from > to) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter failed',
+        details: [
+          {
+            field: 'dueFrom or dueTo',
+            message: 'DueFrom must be before or equal to dueTo',
+            value: {
+              dueFrom,
+              dueTo,
+            },
+          },
+        ],
+      });
+    }
+  }
+
   next();
 }
 
@@ -130,7 +225,7 @@ function validationIdTodo(req: Request, res: Response, next: NextFunction) {
       details: [
         {
           field: 'id',
-          message: 'Id must be positive integer',
+          message: 'Id must be a valid MongoDB ObjectId',
           value: id,
         },
       ],
@@ -140,7 +235,26 @@ function validationIdTodo(req: Request, res: Response, next: NextFunction) {
 }
 
 function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
+  if (
+    req.body === undefined ||
+    req.body === null ||
+    typeof req.body !== 'object' ||
+    Array.isArray(req.body)
+  ) {
+    return res.status(400).json({
+      success: false,
+      error: 'Body request failed',
+      details: [
+        {
+          field: 'body',
+          message: 'Request body must be an object',
+          value: req.body,
+        },
+      ],
+    });
+  }
   const { title, description, priority, dueDate } = req.body;
+
   const allowedFields = ['title', 'description', 'priority', 'dueDate'];
   const unknownFields = Object.keys(req.body).filter(
     (field) => !allowedFields.includes(field)
@@ -158,14 +272,20 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
       ],
     });
   }
-  if (title === undefined || typeof title !== 'string' || title.trim() === '') {
+  if (
+    title === undefined ||
+    typeof title !== 'string' ||
+    title.trim() === '' ||
+    title.length > 150
+  ) {
     return res.status(400).json({
       success: false,
       error: 'Body request failed',
       details: [
         {
           field: 'title',
-          message: 'Title is required and cannot be empty and must be string',
+          message:
+            'Title is required and cannot be empty, must be string and not exceed 150 characters',
           value: title,
         },
       ],
@@ -173,8 +293,8 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
   }
   if (
     description === undefined ||
-    description.trim() === '' ||
     typeof description !== 'string' ||
+    description.trim() === '' ||
     description.length > 300
   ) {
     return res.status(400).json({
@@ -205,7 +325,20 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
     }
   }
 
-  if (dueDate !== undefined) {
+  if (dueDate !== undefined && dueDate !== null) {
+    if (typeof dueDate !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Body request failed',
+        details: [
+          {
+            field: 'dueDate',
+            message: 'DueDate must be a string or null',
+            value: dueDate,
+          },
+        ],
+      });
+    }
     const date = new Date(dueDate);
 
     if (isNaN(date.getTime())) {
@@ -227,6 +360,24 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
 }
 
 function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
+  if (
+    req.body === undefined ||
+    req.body === null ||
+    typeof req.body !== 'object' ||
+    Array.isArray(req.body)
+  ) {
+    return res.status(400).json({
+      success: false,
+      error: 'Body request failed',
+      details: [
+        {
+          field: 'body',
+          message: 'Request body must be an object',
+          value: req.body,
+        },
+      ],
+    });
+  }
   const { title, description, priority, dueDate, completed } = req.body;
   const allowedFields = [
     'title',
@@ -252,15 +403,33 @@ function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
     });
   }
 
+  if (Object.keys(req.body).length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Body request failed',
+      details: [
+        {
+          field: 'body',
+          message: 'At least one field must be provided for update',
+        },
+      ],
+    });
+  }
+
   if (title !== undefined) {
-    if (typeof title !== 'string' || title.trim() === '') {
+    if (
+      typeof title !== 'string' ||
+      title.trim() === '' ||
+      title.length > 150
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Body request failed',
         details: [
           {
             field: 'title',
-            message: 'Title cannot be empty and must be string',
+            message:
+              'Title cannot be empty, must be string and not exceed 150 characters',
             value: title,
           },
         ],
@@ -269,8 +438,8 @@ function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
   }
   if (description !== undefined) {
     if (
-      description.trim() === '' ||
       typeof description !== 'string' ||
+      description.trim() === '' ||
       description.length > 300
     ) {
       return res.status(400).json({
@@ -304,7 +473,20 @@ function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
     }
   }
 
-  if (dueDate !== undefined) {
+  if (dueDate !== undefined && dueDate !== null) {
+    if (typeof dueDate !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Body request failed',
+        details: [
+          {
+            field: 'dueDate',
+            message: 'DueDate must be a string or null',
+            value: dueDate,
+          },
+        ],
+      });
+    }
     const date = new Date(dueDate);
 
     if (isNaN(date.getTime())) {

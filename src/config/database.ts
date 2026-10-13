@@ -1,4 +1,5 @@
 import { MongoClient } from 'mongodb';
+import 'dotenv/config';
 
 const URI = process.env.MONGODB_URI;
 const isProduction = process.env.NODE_ENV === 'production';
