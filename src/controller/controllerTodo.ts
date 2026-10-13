@@ -173,7 +173,7 @@ async function deleteTodo(req: Request, res: Response, next: NextFunction) {
     });
   }
   try {
-    const isDeleted = serviceTodo.deleteTodo(id);
+    const isDeleted = await serviceTodo.deleteTodo(id);
     if (!isDeleted) {
       return res.status(404).json({
         success: false,
