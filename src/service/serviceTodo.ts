@@ -4,19 +4,16 @@ import type {
   TodoQueryOptions,
   UpdateTodo,
 } from '../types/todo.types.js';
-import { getDB } from '../config/database.js';
-import { ObjectId } from 'mongodb';
-import type { Filter } from 'mongodb';
-
-type TodoDocument = Omit<Todo, '_id'>;
-
-const todosCollection = getDB().collection<TodoDocument>('todos');
+import mongoose from 'mongoose';
+import type { TodoFields } from '../models/Todo.js';
+import TodoModel from '../models/Todo.js';
+import type { QueryFilter } from 'mongoose';
 
 async function getAllTodo(options: TodoQueryOptions) {
   const limit = options.limit ?? 10;
   const offset = options.offset ?? 0;
 
-  const filter: Filter<TodoDocument> = {};
+  const filter: QueryFilter<TodoFields> = {};
 
   if (options.completed !== undefined) {
     filter.completed = options.completed;
@@ -67,16 +64,15 @@ async function getAllTodo(options: TodoQueryOptions) {
 
   sort._id = -1;
 
-  const total = await todosCollection.countDocuments();
+  const total = await TodoModel.countDocuments();
 
-  const filtered = await todosCollection.countDocuments(filter);
+  const filtered = await TodoModel.countDocuments(filter);
 
-  const todos = await todosCollection
-    .find(filter)
+  const todos = await TodoModel.find(filter)
     .sort(sort)
     .skip(offset)
     .limit(limit)
-    .toArray();
+    .exec();
 
   return {
     todos,
@@ -87,12 +83,10 @@ async function getAllTodo(options: TodoQueryOptions) {
 }
 
 async function getSingleTodo(id: string): Promise<Todo | null> {
-  if (!ObjectId.isValid(id)) {
+  if (!mongoose.isValidObjectId(id)) {
     return null;
   }
-  const todo = await todosCollection.findOne({
-    _id: new ObjectId(id),
-  });
+  const todo = await TodoModel.findById(id).lean<Todo>().exec();
 
   return todo;
 }
@@ -103,20 +97,16 @@ async function createTodo(body: CreateTodo): Promise<Todo> {
     description: body.description.trim(),
     priority: body.priority ?? 'low',
     dueDate: body.dueDate == null ? null : new Date(body.dueDate),
-    createdAt: new Date(),
     completed: false,
   };
 
-  const result = await todosCollection.insertOne(newTodo);
+  const todo = await TodoModel.create(newTodo);
 
-  return {
-    ...newTodo,
-    _id: result.insertedId,
-  };
+  return todo.toObject() as Todo;
 }
 
 async function updateTodo(id: string, body: UpdateTodo): Promise<Todo | null> {
-  if (!ObjectId.isValid(id)) {
+  if (!mongoose.isValidObjectId(id)) {
     return null;
   }
 
@@ -150,25 +140,23 @@ async function updateTodo(id: string, body: UpdateTodo): Promise<Todo | null> {
     }
   }
 
-  updates.updatedAt = new Date();
-
-  return todosCollection.findOneAndUpdate(
-    { _id: new ObjectId(id) },
+  return TodoModel.findByIdAndUpdate(
+    id,
     { $set: updates },
-    { returnDocument: 'after' }
-  );
+    { returnDocument: 'after', runValidators: true }
+  )
+    .lean<Todo>()
+    .exec();
 }
 
 async function deleteTodo(id: string): Promise<boolean> {
-  if (!ObjectId.isValid(id)) {
+  if (!mongoose.isValidObjectId(id)) {
     return false;
   }
 
-  const result = await todosCollection.deleteOne({
-    _id: new ObjectId(id),
-  });
+  const deletedTodo = await TodoModel.findByIdAndDelete(id);
 
-  return result.deletedCount === 1;
+  return deletedTodo !== null;
 }
 
 export { getAllTodo, createTodo, updateTodo, getSingleTodo, deleteTodo };

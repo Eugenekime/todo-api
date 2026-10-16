@@ -1,7 +1,7 @@
-import type { ObjectId } from 'mongodb';
+import { Types } from 'mongoose';
 
 export interface Todo {
-  _id: ObjectId;
+  _id: Types.ObjectId;
   title: string;
   description: string;
   completed: boolean;

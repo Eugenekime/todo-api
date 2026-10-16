@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import mongoose from 'mongoose';
 import 'dotenv/config';
 
 const URI = process.env.MONGODB_URI;
@@ -9,8 +9,6 @@ if (!URI) {
   throw new Error('MONGODB_URI is not defined');
 }
 
-const client = new MongoClient(URI, { maxPoolSize: 10 });
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -20,11 +18,14 @@ function sleep(ms: number): Promise<void> {
 export async function connectDB(): Promise<void> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await client.connect();
-      const db = client.db('todo');
+      if (!URI) {
+        throw new Error('MONGODB_URI is not defined');
+      }
+      await mongoose.connect(URI, {
+        dbName: 'todo',
+      });
+      await mongoose.connection.db?.command({ ping: 1 });
       console.log(`MongoDB connection attempt ${attempt}/${maxAttempts}`);
-      await db.command({ ping: 1 });
-      console.log('MongoDB connected successfully');
 
       return;
     } catch (error) {
@@ -39,14 +40,12 @@ export async function connectDB(): Promise<void> {
 
 export async function checkDB(): Promise<boolean> {
   try {
-    const db = client.db('todo');
-    await db.command({ ping: 1 });
+    if (mongoose.connection.readyState !== 1) {
+      return false;
+    }
+    await mongoose.connection.db?.command({ ping: 1 });
     return true;
   } catch {
     return false;
   }
-}
-
-export function getDB() {
-  return client.db('todo');
 }

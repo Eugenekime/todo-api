@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { ObjectId } from 'mongodb';
+import mongoose from 'mongoose';
 
 function validationQuery(req: Request, res: Response, next: NextFunction) {
   const {
@@ -15,7 +15,12 @@ function validationQuery(req: Request, res: Response, next: NextFunction) {
   } = req.query;
 
   if (limit !== undefined) {
-    if (!Number.isInteger(Number(limit)) || Number(limit) < 1) {
+    if (
+      typeof limit !== 'string' ||
+      !Number.isInteger(Number(limit)) ||
+      Number(limit) < 1 ||
+      Number(limit) > 100
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Query parameter failed',
@@ -30,7 +35,12 @@ function validationQuery(req: Request, res: Response, next: NextFunction) {
     }
   }
   if (offset !== undefined) {
-    if (!Number.isInteger(Number(offset)) || Number(offset) < 0) {
+    if (
+      typeof offset !== 'string' ||
+      !Number.isInteger(Number(offset)) ||
+      Number(offset) < 0 ||
+      Number(offset) > 100
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Query parameter failed',
@@ -218,10 +228,10 @@ function validationQuery(req: Request, res: Response, next: NextFunction) {
 
 function validationIdTodo(req: Request, res: Response, next: NextFunction) {
   const id = req.params.id;
-  if (typeof id !== 'string' || !ObjectId.isValid(id)) {
+  if (!mongoose.isObjectIdOrHexString(id)) {
     return res.status(400).json({
       success: false,
-      error: 'Body request failed',
+      error: 'Request validation failed',
       details: [
         {
           field: 'id',
@@ -276,7 +286,7 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
     title === undefined ||
     typeof title !== 'string' ||
     title.trim() === '' ||
-    title.length > 150
+    title.length > 100
   ) {
     return res.status(400).json({
       success: false,
@@ -285,7 +295,7 @@ function validationCreateTodo(req: Request, res: Response, next: NextFunction) {
         {
           field: 'title',
           message:
-            'Title is required and cannot be empty, must be string and not exceed 150 characters',
+            'Title is required and cannot be empty, must be string and not exceed 100 characters',
           value: title,
         },
       ],
@@ -420,7 +430,7 @@ function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
     if (
       typeof title !== 'string' ||
       title.trim() === '' ||
-      title.length > 150
+      title.length > 100
     ) {
       return res.status(400).json({
         success: false,
@@ -429,7 +439,7 @@ function validationUpdateTodo(req: Request, res: Response, next: NextFunction) {
           {
             field: 'title',
             message:
-              'Title cannot be empty, must be string and not exceed 150 characters',
+              'Title cannot be empty, must be string and not exceed 100 characters',
             value: title,
           },
         ],
