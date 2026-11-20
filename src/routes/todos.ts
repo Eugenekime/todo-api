@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { Server } from 'socket.io';
+
 import {
   validationCreateTodo,
   validationIdTodo,
@@ -13,12 +15,25 @@ import {
   updateTodo,
 } from '../controller/controllerTodo.js';
 
-const router = Router();
+const createTodoRouter = (io: Server) => {
+  const router = Router();
 
-router.get('/todos', validationQuery, getAllTodo);
-router.get('/todos/:id', validationIdTodo, getSingleTodo);
-router.post('/todos', validationCreateTodo, createTodo);
-router.put('/todos/:id', validationIdTodo, validationUpdateTodo, updateTodo);
-router.delete('/todos/:id', validationIdTodo, deleteTodo);
+  router.get('/todos', validationQuery, getAllTodo);
 
-export default router;
+  router.get('/todos/:id', validationIdTodo, getSingleTodo);
+
+  router.post('/todos', validationCreateTodo, createTodo(io));
+
+  router.put(
+    '/todos/:id',
+    validationIdTodo,
+    validationUpdateTodo,
+    updateTodo(io)
+  );
+
+  router.delete('/todos/:id', validationIdTodo, deleteTodo(io));
+
+  return router;
+};
+
+export default createTodoRouter;

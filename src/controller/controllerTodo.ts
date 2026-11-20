@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { TodoQueryOptions } from '../types/todo.types.js';
+import type { Server } from 'socket.io';
+import { WORKSPACE } from '../sockets/socketHandlers.js';
 import * as serviceTodo from '../service/serviceTodo.js';
 import { ObjectId } from 'mongodb';
 
@@ -103,95 +105,103 @@ async function getSingleTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-async function createTodo(req: Request, res: Response, next: NextFunction) {
-  try {
-    const newTodo = await serviceTodo.createTodo(req.body);
-
-    return res.status(201).json({
-      success: true,
-      message: 'Todo created',
-      data: newTodo,
-    });
-  } catch (error) {
-    next(error);
-  }
+function createTodo(io: Server) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const newTodo = await serviceTodo.createTodo(req.body);
+      io.to(WORKSPACE).emit('todo:created', newTodo);
+      return res.status(201).json({
+        success: true,
+        message: 'Todo created',
+        data: newTodo,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
-async function updateTodo(req: Request, res: Response, next: NextFunction) {
-  const id = req.params.id;
-  if (typeof id !== 'string' || !ObjectId.isValid(id)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid id',
-      details: [
-        {
-          field: 'id',
-          message: 'Id must be a valid MongoDB ObjectId',
-          value: id,
-        },
-      ],
-    });
-  }
-  try {
-    const updatedTodo = await serviceTodo.updateTodo(id, req.body);
-    if (!updatedTodo) {
-      return res.status(404).json({
+function updateTodo(io: Server) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.params.id;
+    if (typeof id !== 'string' || !ObjectId.isValid(id)) {
+      return res.status(400).json({
         success: false,
-        error: 'Id request failed',
+        error: 'Invalid id',
         details: [
           {
             field: 'id',
-            message: 'Cannot found id',
+            message: 'Id must be a valid MongoDB ObjectId',
             value: id,
           },
         ],
       });
     }
-    return res.status(200).json({
-      success: true,
-      message: 'Todo updated',
-      data: updatedTodo,
-    });
-  } catch (error) {
-    next(error);
-  }
+    try {
+      const updatedTodo = await serviceTodo.updateTodo(id, req.body);
+      if (!updatedTodo) {
+        return res.status(404).json({
+          success: false,
+          error: 'Id request failed',
+          details: [
+            {
+              field: 'id',
+              message: 'Cannot found id',
+              value: id,
+            },
+          ],
+        });
+      }
+      io.to(WORKSPACE).emit('todo:updated', updatedTodo);
+      return res.status(200).json({
+        success: true,
+        message: 'Todo updated',
+        data: updatedTodo,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
-async function deleteTodo(req: Request, res: Response, next: NextFunction) {
-  const id = req.params.id;
-  if (typeof id !== 'string' || !ObjectId.isValid(id)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid id',
-      details: [
-        {
-          field: 'id',
-          message: 'Id must be a valid MongoDB ObjectId',
-          value: id,
-        },
-      ],
-    });
-  }
-  try {
-    const isDeleted = await serviceTodo.deleteTodo(id);
-    if (!isDeleted) {
-      return res.status(404).json({
+function deleteTodo(io: Server) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const id = req.params.id;
+    if (typeof id !== 'string' || !ObjectId.isValid(id)) {
+      return res.status(400).json({
         success: false,
-        error: 'Id request failed',
+        error: 'Invalid id',
         details: [
           {
             field: 'id',
-            message: 'Cannot found id',
+            message: 'Id must be a valid MongoDB ObjectId',
             value: id,
           },
         ],
       });
     }
+    try {
+      const isDeleted = await serviceTodo.deleteTodo(id);
+      if (!isDeleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Id request failed',
+          details: [
+            {
+              field: 'id',
+              message: 'Cannot found id',
+              value: id,
+            },
+          ],
+        });
+      }
+      io.to(WORKSPACE).emit('todo:deleted', { id });
 
-    return res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
+      return res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export { getAllTodo, createTodo, updateTodo, getSingleTodo, deleteTodo };
