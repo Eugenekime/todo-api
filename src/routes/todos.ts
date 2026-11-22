@@ -8,30 +8,30 @@ import {
   validationUpdateTodo,
 } from '../middleware/validation.js';
 import {
-  createTodo,
-  deleteTodo,
-  getAllTodo,
-  getSingleTodo,
-  updateTodo,
+  createTodoController,
+  deleteTodoController,
+  getAllTodoController,
+  getSingleTodoController,
+  updateTodoController,
 } from '../controller/controllerTodo.js';
 
 const createTodoRouter = (io: Server) => {
   const router = Router();
 
-  router.get('/todos', validationQuery, getAllTodo);
+  router.get('/todos', validationQuery, getAllTodoController);
 
-  router.get('/todos/:id', validationIdTodo, getSingleTodo);
+  router.get('/todos/:id', validationIdTodo, getSingleTodoController);
 
-  router.post('/todos', validationCreateTodo, createTodo(io));
+  router.post('/todos', validationCreateTodo, createTodoController(io));
 
   router.put(
     '/todos/:id',
     validationIdTodo,
     validationUpdateTodo,
-    updateTodo(io)
+    updateTodoController(io)
   );
 
-  router.delete('/todos/:id', validationIdTodo, deleteTodo(io));
+  router.delete('/todos/:id', validationIdTodo, deleteTodoController(io));
 
   return router;
 };

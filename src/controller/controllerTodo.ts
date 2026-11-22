@@ -5,7 +5,11 @@ import { WORKSPACE } from '../sockets/socketHandlers.js';
 import * as serviceTodo from '../service/serviceTodo.js';
 import { ObjectId } from 'mongodb';
 
-async function getAllTodo(req: Request, res: Response, next: NextFunction) {
+async function getAllTodoController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const {
       limit,
@@ -65,7 +69,11 @@ async function getAllTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-async function getSingleTodo(req: Request, res: Response, next: NextFunction) {
+async function getSingleTodoController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const id = req.params.id;
 
   if (typeof id !== 'string' || !ObjectId.isValid(id)) {
@@ -105,7 +113,7 @@ async function getSingleTodo(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-function createTodo(io: Server) {
+function createTodoController(io: Server) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const newTodo = await serviceTodo.createTodo(req.body);
@@ -121,7 +129,7 @@ function createTodo(io: Server) {
   };
 }
 
-function updateTodo(io: Server) {
+function updateTodoController(io: Server) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
     if (typeof id !== 'string' || !ObjectId.isValid(id)) {
@@ -164,7 +172,7 @@ function updateTodo(io: Server) {
   };
 }
 
-function deleteTodo(io: Server) {
+function deleteTodoController(io: Server) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
     if (typeof id !== 'string' || !ObjectId.isValid(id)) {
@@ -204,4 +212,10 @@ function deleteTodo(io: Server) {
   };
 }
 
-export { getAllTodo, createTodo, updateTodo, getSingleTodo, deleteTodo };
+export {
+  getAllTodoController,
+  createTodoController,
+  updateTodoController,
+  getSingleTodoController,
+  deleteTodoController,
+};

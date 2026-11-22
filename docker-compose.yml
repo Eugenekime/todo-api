@@ -1,0 +1,32 @@
+services:
+  api:
+    build: .
+    container_name: todo-api-v2
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: todo-mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
