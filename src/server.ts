@@ -9,6 +9,7 @@ import logRequest from './middleware/logRequest.js';
 import errorHandler from './middleware/errorHandler.js';
 import { connectDB, checkDB } from './config/database.js';
 import { setupSocketHandlers } from './sockets/socketHandlers.js';
+import { connectRedis } from './config/redis.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,6 +61,7 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer(): Promise<void> {
   try {
+    await connectRedis();
     await connectDB();
     httpServer.listen(PORT, () => {
       console.log(`Listening on ${PORT} port`);

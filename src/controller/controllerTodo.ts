@@ -4,6 +4,7 @@ import type { Server } from 'socket.io';
 import { WORKSPACE } from '../sockets/socketHandlers.js';
 import * as serviceTodo from '../service/serviceTodo.js';
 import { ObjectId } from 'mongodb';
+import redisClient from '../config/redis.js';
 
 async function getAllTodoController(
   req: Request,
@@ -59,7 +60,15 @@ async function getAllTodoController(
       options.dueTo = dueTo;
     }
 
+    const cachedTodos = await redisClient.get('todos');
+    if (cachedTodos) {
+      return res.json({ success: true, ...JSON.parse(cachedTodos) });
+    }
+
     const response = await serviceTodo.getAllTodo(options);
+    await redisClient.set('todos', JSON.stringify(response), {
+      EX: 60 * 3,
+    });
     return res.json({
       success: true,
       ...response,
@@ -91,7 +100,15 @@ async function getSingleTodoController(
   }
 
   try {
+    const cachedSingleTodo = await redisClient.get('singleTodo');
+
+    if (cachedSingleTodo) {
+      return res.json(JSON.parse(cachedSingleTodo));
+    }
+
     const data = await serviceTodo.getSingleTodo(id);
+
+    await redisClient.set('singleTodo', JSON.stringify(data), { EX: 60 * 3 });
 
     if (!data) {
       return res.status(404).json({
